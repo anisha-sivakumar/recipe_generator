@@ -1,0 +1,55 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recipe Generator</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Recipe Generator</h1>
+        <form method="post">
+            <label for="ingredients">Ingredients (comma separated):</label>
+            <input type="text" id="ingredients" name="ingredients" required>
+            
+            <label for="meal_type">Meal Type:</label>
+            <select id="meal_type" name="meal_type" required>
+                <option value="breakfast">Breakfast</option>
+                <option value="lunch">Lunch</option>
+                <option value="dinner">Dinner</option>
+                <option value="snack">Snack</option>
+            </select>
+            
+            <label for="cuisine">Cuisine:</label>
+            <select id="cuisine" name="cuisine" required>
+                <option value="italian">Italian</option>
+                <option value="chinese">Chinese</option>
+                <option value="indian">Indian</option>
+                <option value="mexican">Mexican</option>
+            </select>
+            
+            <label for="time_limit">Time Limit (in minutes):</label>
+            <input type="number" id="time_limit" name="time_limit" required>
+            
+            <button type="submit">Generate Recipe</button>
+        </form>
+        
+        {% if recipe %}
+        <div class="recipe">
+            <h2>Generated Recipe:</h2>
+            <ul>
+                {% for step in recipe %}
+                    <li>{{ step }}</li>
+                {% endfor %}
+            </ul>
+            <form method="post" action="/play_recipe">
+                <input type="hidden" name="recipe" value="{{ recipe | join('. ') }}">
+                <button type="submit">Play Recipe</button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>
