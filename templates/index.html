@@ -1,55 +1,165 @@
-<!-- templates/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Recipe Generator</title>
-    <link rel="stylesheet" href="/static/styles.css">
+    <title>Smart Recipe Generator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
     <div class="container">
-        <h1>Recipe Generator</h1>
-        <form method="post">
-            <label for="ingredients">Ingredients (comma separated):</label>
-            <input type="text" id="ingredients" name="ingredients" required>
-            
-            <label for="meal_type">Meal Type:</label>
-            <select id="meal_type" name="meal_type" required>
-                <option value="breakfast">Breakfast</option>
-                <option value="lunch">Lunch</option>
-                <option value="dinner">Dinner</option>
-                <option value="snack">Snack</option>
-            </select>
-            
-            <label for="cuisine">Cuisine:</label>
-            <select id="cuisine" name="cuisine" required>
-                <option value="italian">Italian</option>
-                <option value="chinese">Chinese</option>
-                <option value="indian">Indian</option>
-                <option value="mexican">Mexican</option>
-            </select>
-            
-            <label for="time_limit">Time Limit (in minutes):</label>
-            <input type="number" id="time_limit" name="time_limit" required>
-            
-            <button type="submit">Generate Recipe</button>
-        </form>
-        
-        {% if recipe %}
-        <div class="recipe">
-            <h2>Generated Recipe:</h2>
-            <ul>
-                {% for step in recipe %}
-                    <li>{{ step }}</li>
-                {% endfor %}
-            </ul>
-            <form method="post" action="/play_recipe">
-                <input type="hidden" name="recipe" value="{{ recipe | join('. ') }}">
-                <button type="submit">Play Recipe</button>
-            </form>
+        <h1>Smart Recipe Generator</h1>
+        <div class="recipe-form">
+            <div class="form-group">
+                <label for="ingredient">Enter Main Ingredient:</label>
+                <input type="text" id="ingredient" name="ingredient" placeholder="e.g., chicken" required>
+            </div>
+            <div class="form-group">
+                <label for="side-ingredient">Enter Side Ingredient:</label>
+                <input type="text" id="side-ingredient" name="side-ingredient" placeholder="e.g., rice">
+            </div>
+            <button onclick="generateRecipes()" class="generate-btn">Generate Recipes</button>
         </div>
-        {% endif %}
+
+        <div id="recipes-container" class="recipes-container" style="display: none;">
+            <div class="recipes-header">
+                <h2>Suggested Recipes</h2>
+                <button onclick="generateRecipes(true)" class="refresh-btn">Generate Again</button>
+            </div>
+            <div id="recipes-list" class="recipes-list"></div>
+        </div>
+
+        <div id="selected-recipe" class="recipe-details" style="display: none;"></div>
     </div>
+
+    <script>
+        let currentOffset = 0;
+        
+        async function generateRecipes(refresh = false) {
+            const ingredient = document.getElementById('ingredient').value;
+            const sideIngredient = document.getElementById('side-ingredient').value;
+            if (!ingredient) return;
+            
+            if (refresh) {
+                currentOffset += 3;
+            } else {
+                currentOffset = 0;
+            }
+            
+            try {
+                const response = await fetch('/api/recipes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        ingredient: ingredient,
+                        sideIngredient: sideIngredient,
+                        offset: currentOffset 
+                    })
+                });
+                
+                const data = await response.json();
+                displayRecipes(data.recipes);
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        function displayRecipes(recipes) {
+            const container = document.getElementById('recipes-container');
+            const list = document.getElementById('recipes-list');
+            container.style.display = 'block';
+            
+            list.innerHTML = recipes.map((recipe, index) => `
+                <div class="recipe-card" onclick="showRecipeDetails(${index})">
+                    <h3>${recipe.name}</h3>
+                    <div class="recipe-meta">
+                        <span>⏱️ ${recipe.cooking_time}</span>
+                        <span>🔨 ${recipe.difficulty}</span>
+                    </div>
+                </div>
+            `).join('');
+            
+            window.currentRecipes = recipes;
+        }
+
+        function showRecipeDetails(index) {
+            const recipe = window.currentRecipes[index];
+            const details = document.getElementById('selected-recipe');
+            
+            details.innerHTML = `
+                <h2>${recipe.name}</h2>
+                <p>${recipe.description}</p>
+                <div class="ingredients">
+                    <h3>Ingredients:</h3>
+                    <ul>
+                        ${recipe.ingredients.map(i => `<li>${i}</li>`).join('')}
+                    </ul>
+                </div>
+                <div class="instructions">
+                    <h3>Instructions:</h3>
+                    <ol>
+                        ${recipe.instructions.map(s => `<li>${s}</li>`).join('')}
+                    </ol>
+                </div>
+            `;
+            
+            details.style.display = 'block';
+        }
+        function showRecipeDetails(index) {
+            const recipe = window.currentRecipes[index];
+            const details = document.getElementById('selected-recipe');
+            
+            // Updated to include video section
+            details.innerHTML = `
+                <h2>${recipe.name}</h2>
+                <p>${recipe.description}</p>
+                <div id="recipe-videos" class="video-section">
+                    <h3>Recipe Videos</h3>
+                    <div class="video-container"></div>
+                </div>
+                <div class="ingredients">
+                    <h3>Ingredients:</h3>
+                    <ul>
+                        ${recipe.ingredients.map(i => `<li>${i}</li>`).join('')}
+                    </ul>
+                </div>
+                <div class="instructions">
+                    <h3>Instructions:</h3>
+                    <ol>
+                        ${recipe.instructions.map(s => `<li>${s}</li>`).join('')}
+                    </ol>
+                </div>
+            `;
+            
+            // Load videos dynamically
+            loadRecipeVideos(recipe.name);
+            details.style.display = 'block';
+        }
+        
+        async function loadRecipeVideos(recipeName) {
+            try {
+                const response = await fetch('/api/videos', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ recipe_name: recipeName })
+                });
+                const data = await response.json();
+                const videoContainer = document.querySelector('.video-container');
+                videoContainer.innerHTML = data.videos.map(video => `
+                    <div class="video-card">
+                        <video controls poster="${video.thumbnail}">
+                            <source src="${video.url}" type="video/mp4">
+                            Your browser does not support video playback.
+                        </video>
+                        <h4>${video.title}</h4>
+                        <span>${video.duration}</span>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading videos:', error);
+            }
+        }
+        
+    </script>
 </body>
 </html>
